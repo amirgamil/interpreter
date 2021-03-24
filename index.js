@@ -24,22 +24,23 @@ const mathItUp = (num1, num2, op) => {
   } else if (op == MULT) {
     return num1 * num2;
   } else if (op == DIVIDE) {
-    return num1 / num2;
+    //Integer division
+    return parseInt(num1 / num2);
   }
 }
 
-class Interpreter {
+
+class Lexer {
   constructor(text) {
     this.pos = 0;
     this.text = text;
     this.currentCharacter = this.text.charAt(this.pos);
-    this.currentToken = null;
   }
-
 
   error = () => {
-      throw "my dude, uh oh";
+      throw "Invalid character my dude, common";
   }
+
 
   getInteger = () => {
     //Return a multidigit or single digit integer
@@ -49,6 +50,16 @@ class Interpreter {
       this.advance();
     }
     return parseInt(currInt);
+  }
+
+  advance = () => {
+    //Advance the current index in the line of code we're parsing
+    this.pos += 1;
+    if (this.pos >= this.text.length) {
+      this.currentCharacter = null
+    } else {
+      this.currentCharacter = this.text.charAt(this.pos);
+    }
   }
 
   getNextToken = () => {
@@ -72,7 +83,8 @@ class Interpreter {
       } else if (this.currentCharacter == "/") {
         this.advance();
         return new Token(DIVIDE, "/");
-      } else if (parseInt(this.currentCharacter) != null) {
+      } else if (!Number.isNaN(parseInt(this.currentCharacter))) {
+        console.log(this.currentCharacter);
         return new Token(INTEGER, this.getInteger());
       }
       console.log(this.currentCharacter);
@@ -82,37 +94,44 @@ class Interpreter {
     return new Token(EOF, "end")
   }
 
-  advance = () => {
-    //Advance the current index in the line of code we're parsing
-    this.pos += 1;
-    if (this.pos >= this.text.length) {
-      this.currentCharacter = null
-    } else {
-      this.currentCharacter = this.text.charAt(this.pos);
-    }
+}
+
+class Interpreter {
+  constructor(text) {
+    this.lexer = new Lexer(text);
+    this.currentToken = null;
+  }
+
+
+  error = () => {
+      throw "Invalid syntax my dude, you're better than this!";
   }
 
   eat = (tokenType) => {
     //"Eat" the last token and move to the next token
     if (this.currentToken.type == tokenType) {
-      this.currentToken = this.getNextToken();
+      this.currentToken = this.lexer.getNextToken();
     } else {
       this.error();
     }
   }
 
+  factor = () => {
+    //Get a term which is an integer
+    const curr = this.currentToken;
+    this.eat(INTEGER);
+    return curr;  
+  }
+
+
   getExp = () => {
     //Get the result of the expression inputted it and return it - Interpreter or Parser
-    //Parse = recognize what the phrase is (i.e. + or -), interpret = actually evaluate the expression
-    // Interpreter accepts
-    // INTEGER + INTEGER
-    // INTEGER - INTEGER
-    // INTEGER * INTEGER
-    // INTEGER / INTEGER
-    this.currentToken = this.getNextToken();
+    //Arithmetic expression expr
+    //expr: factor((ADD | SUBTRACT) factor)*
+    //expr: factor((MULT | DIV) factor)*
+    this.currentToken = this.lexer.getNextToken();
     var res;
-    let left = this.currentToken;
-    this.eat(INTEGER);
+    let left = this.factor();
     var op;
     while (this.currentToken.type != EOF) {
       const curr = this.currentToken;
@@ -128,12 +147,13 @@ class Interpreter {
       } else if (curr.type == DIVIDE) {
         op = this.currentToken;
         this.eat(DIVIDE);
-      } else {
-        this.eat(INTEGER);
-        res = mathItUp(left.value, curr.value, op.type);
-        left = new Token(INTEGER, res);
-        continue;
-      }
+      } 
+      // else {
+      //   this.error();
+      // }
+      
+      res = mathItUp(left.value, this.factor().value, op.type);
+      left = new Token(INTEGER, res);
     }
 
     
