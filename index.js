@@ -84,7 +84,6 @@ class Lexer {
         this.advance();
         return new Token(DIVIDE, "/");
       } else if (!Number.isNaN(parseInt(this.currentCharacter))) {
-        console.log(this.currentCharacter);
         return new Token(INTEGER, this.getInteger());
       }
       console.log(this.currentCharacter);
@@ -123,15 +122,34 @@ class Interpreter {
     return curr;  
   }
 
+  term = () => {
+    //term: factor((MULT | DIV) factor)*
+    var left = this.factor().value;
+    var res = left;
+    var op;
+    while (this.currentToken.type == DIVIDE || this.currentToken.type == MULT) {
+      const curr = this.currentToken;
+      if (curr.type == MULT) {
+        op = this.currentToken;
+        this.eat(MULT);
+      } else if (curr.type == DIV) {
+        op = this.currentToken
+        this.eat(DIV);
+      }
+
+      res = mathItUp(left, this.factor().value, op.type)
+      left = res;
+    }
+    return res;
+  }
 
   getExp = () => {
     //Get the result of the expression inputted it and return it - Interpreter or Parser
     //Arithmetic expression expr
-    //expr: factor((ADD | SUBTRACT) factor)*
-    //expr: factor((MULT | DIV) factor)*
+    //expr: term((ADD | SUBTRACT) term)*
     this.currentToken = this.lexer.getNextToken();
-    var res;
-    let left = this.factor();
+    let left = new Token(INTEGER, this.term());
+    var res = left.value
     var op;
     while (this.currentToken.type != EOF) {
       const curr = this.currentToken;
@@ -141,23 +159,10 @@ class Interpreter {
       } else if (curr.type == MINUS) {
         op = this.currentToken;
         this.eat(MINUS);
-      } else if (curr.type == MULT) {
-        op = this.currentToken;
-        this.eat(MULT);
-      } else if (curr.type == DIVIDE) {
-        op = this.currentToken;
-        this.eat(DIVIDE);
       } 
-      // else {
-      //   this.error();
-      // }
-      
-      res = mathItUp(left.value, this.factor().value, op.type);
+      res = mathItUp(left.value, this.term(), op.type);
       left = new Token(INTEGER, res);
     }
-
-    
-    
     return res;
   }
 }
