@@ -173,7 +173,7 @@ class Interpreter {
       } else if (curr.type == MINUS) {
         op = this.currentToken;
         this.eat(MINUS);
-      } 
+      }
       res = mathItUp(res, this.term(), op.type);
     }
     return res;
