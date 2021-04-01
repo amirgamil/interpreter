@@ -7,6 +7,8 @@ const MULT = "MULT";
 const DIVIDE = "DIVIDE";
 const EOF = "EOF";
 const SPACE = " ";
+const LPAREN = "(";
+const RPAREN = ")";
 
 class Token {
   constructor(type, value) {
@@ -85,6 +87,12 @@ class Lexer {
         return new Token(DIVIDE, "/");
       } else if (!Number.isNaN(parseInt(this.currentCharacter))) {
         return new Token(INTEGER, this.getInteger());
+      } else if (this.currentCharacter == "(") {
+        this.advance();
+        return new Token(LPAREN, "(");
+      } else if (this.currentCharacter == ")") {
+        this.advance();
+        return new Token(RPAREN, ")");
       }
       console.log(this.currentCharacter);
       this.error();
@@ -98,7 +106,7 @@ class Lexer {
 class Interpreter {
   constructor(text) {
     this.lexer = new Lexer(text);
-    this.currentToken = null;
+    this.currentToken = this.lexer.getNextToken();
   }
 
 
@@ -116,14 +124,22 @@ class Interpreter {
   }
 
   factor = () => {
-    //Get a term which is an integer
+    //Return token:
+    //factor: INTEGER | LPAREN getExp RPAREN
     const curr = this.currentToken;
-    this.eat(INTEGER);
-    return curr;  
+    if (curr.type == INTEGER) {
+      this.eat(INTEGER);
+      return curr;  
+    } else {
+      this.eat(LPAREN);
+      const res = this.getExp();
+      this.eat(RPAREN);
+      return new Token(INTEGER, res);
+    }
   }
 
   term = () => {
-    //term: factor((MULT | DIV) factor)*
+    //term: ((MULT | DIV) factor)*
     var left = this.factor().value;
     var res = left;
     var op;
@@ -147,11 +163,9 @@ class Interpreter {
     //Get the result of the expression inputted it and return it - Interpreter or Parser
     //Arithmetic expression expr
     //expr: term((ADD | SUBTRACT) term)*
-    this.currentToken = this.lexer.getNextToken();
-    let left = new Token(INTEGER, this.term());
-    var res = left.value
+    var res = this.term();
     var op;
-    while (this.currentToken.type != EOF) {
+    while (this.currentToken.type != EOF && this.currentToken.type != RPAREN) {
       const curr = this.currentToken;
       if (curr.type == PLUS) {
         op = this.currentToken;
@@ -160,8 +174,7 @@ class Interpreter {
         op = this.currentToken;
         this.eat(MINUS);
       } 
-      res = mathItUp(left.value, this.term(), op.type);
-      left = new Token(INTEGER, res);
+      res = mathItUp(res, this.term(), op.type);
     }
     return res;
   }
