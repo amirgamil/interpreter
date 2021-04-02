@@ -10,6 +10,13 @@ const SPACE = " ";
 const LPAREN = "(";
 const RPAREN = ")";
 
+
+/////////////////////////////////
+//                             //
+//  LEXER                      //
+//                             //
+/////////////////////////////////
+
 class Token {
   constructor(type, value) {
     this.type = type;
@@ -103,9 +110,38 @@ class Lexer {
 
 }
 
-class Interpreter {
-  constructor(text) {
-    this.lexer = new Lexer(text);
+
+/////////////////////////////////
+//                             //
+//  Parser                     //
+//                             //
+/////////////////////////////////
+
+class AST {
+  constructor() {
+    
+  }
+}
+//Node to represent a binary operation (i.e. on two values)
+class BinOp extends AST {
+  constructor(left, op, right) {
+    super();
+    this.left = left;
+    this.token = this.op = op;
+    this.right = right;
+  }
+}
+
+class Num extends AST {
+  constructor(token) {
+    this.token = token;
+    this.value = token.value;
+  }
+}
+
+class Parser {
+  constructor(lexer) {
+    this.lexer = lexer;
     this.currentToken = this.lexer.getNextToken();
   }
 
@@ -124,7 +160,7 @@ class Interpreter {
   }
 
   factor = () => {
-    //Return token:
+    //Return node:
     //factor: INTEGER | LPAREN getExp RPAREN
     const curr = this.currentToken;
     if (curr.type == INTEGER) {
@@ -134,36 +170,34 @@ class Interpreter {
       this.eat(LPAREN);
       const res = this.getExp();
       this.eat(RPAREN);
-      return new Token(INTEGER, res);
+      return res;
     }
   }
 
   term = () => {
-    //term: ((MULT | DIV) factor)*
-    var left = this.factor().value;
-    var res = left;
+    //term: factor((MULT | DIV) factor)*
+    var node = this.factor().value;
     var op;
     while (this.currentToken.type == DIVIDE || this.currentToken.type == MULT) {
       const curr = this.currentToken;
       if (curr.type == MULT) {
         op = this.currentToken;
         this.eat(MULT);
-      } else if (curr.type == DIV) {
+      } else if (curr.type == DIVIDE) {
         op = this.currentToken
-        this.eat(DIV);
+        this.eat(DIVIDE);
       }
 
-      res = mathItUp(left, this.factor().value, op.type)
-      left = res;
+      node = new BinOp(node, op.type, this.factor());
     }
-    return res;
+    return node;
   }
 
   getExp = () => {
     //Get the result of the expression inputted it and return it - Interpreter or Parser
     //Arithmetic expression expr
     //expr: term((ADD | SUBTRACT) term)*
-    var res = this.term();
+    var node = this.term();
     var op;
     while (this.currentToken.type != EOF && this.currentToken.type != RPAREN) {
       const curr = this.currentToken;
@@ -174,18 +208,78 @@ class Interpreter {
         op = this.currentToken;
         this.eat(MINUS);
       }
-      res = mathItUp(res, this.term(), op.type);
+      //recursively builds tree structure so node is new root
+      node = new BinOp(node, op.type, this.term());
     }
-    return res;
+    return node;
+  }
+
+  parse = () => {
+    return this.getExp();
   }
 }
+
+
+/////////////////////////////////
+//                             //
+//  Interpreter                //
+//                             //
+/////////////////////////////////
+//Interpreted expression corresponds to post-order traveral
+//of the AST
+class NodeVisitor {
+  visit = (node) => {
+    const methodName = "visit" + typeof(node).name;
+    const visitor = new Proxy(this.methodName, () => {
+      this.genericVisit;
+    });
+  }
+
+  genericVisit = (node) => {
+    throw Exception("No visit" + node.name + " method");
+  }
+}
+
+class Interpreter extends NodeVisitor {
+  constructor(parser) {
+    super();
+    this.parser = parser;
+  }
+
+  visitBinOp = (node) => {
+    if (node.op.type == PLUS) {
+      return this.visit(node.left) + this.visit(node.right);
+    } else if (node.op.type == MINUS) {
+      return this.visit(node.left) - this.visit(node.right);
+    } else if (node.op.type == MUL) {
+      return this.visit(node.left) * this.visit(node.right);
+    } else if (node.op.type == DIV) {
+      return this.visit(node.left) / this.visit(node.right);
+    }
+  }
+
+  visitNum = (node) => {
+    return node.value;
+  }
+
+  interpret = () => {
+    const tree = this.parser.parse();
+    return this.visit(tree);
+  }
+}
+
+
+
 
 
 if (require.main == module) {
   while (true) {
     const prompt = require('prompt-sync')();
-    const code = prompt('calc > ');
-    var interp = new Interpreter(code);
-    console.log(interp.getExp());
+    const text = prompt('spi > ');
+    const lexer = new Lexer(text)
+    const parser = new Parser(lexer);
+    const interpreter = new Interpreter(parser);
+    const result = interpreter.interpret();
+    console.log(result);
   }
 }
