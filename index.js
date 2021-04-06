@@ -25,20 +25,6 @@ class Token {
 }
 
 
-const mathItUp = (num1, num2, op) => {
-  if (op == PLUS) {
-    return num1 + num2;
-  } else if (op == MINUS) {
-    return num1 - num2;
-  } else if (op == MULT) {
-    return num1 * num2;
-  } else if (op == DIVIDE) {
-    //Integer division
-    return parseInt(num1 / num2);
-  }
-}
-
-
 class Lexer {
   constructor(text) {
     this.pos = 0;
@@ -126,6 +112,7 @@ class AST {
 class BinOp extends AST {
   constructor(left, op, right) {
     super();
+    this.name = "BinOp";
     this.left = left;
     this.token = this.op = op;
     this.right = right;
@@ -134,6 +121,8 @@ class BinOp extends AST {
 
 class Num extends AST {
   constructor(token) {
+    super();
+    this.name = "Num";
     this.token = token;
     this.value = token.value;
   }
@@ -165,7 +154,7 @@ class Parser {
     const curr = this.currentToken;
     if (curr.type == INTEGER) {
       this.eat(INTEGER);
-      return curr;  
+      return new Num(curr);  
     } else {
       this.eat(LPAREN);
       const res = this.getExp();
@@ -176,7 +165,7 @@ class Parser {
 
   term = () => {
     //term: factor((MULT | DIV) factor)*
-    var node = this.factor().value;
+    var node = this.factor();
     var op;
     while (this.currentToken.type == DIVIDE || this.currentToken.type == MULT) {
       const curr = this.currentToken;
@@ -188,7 +177,7 @@ class Parser {
         this.eat(DIVIDE);
       }
 
-      node = new BinOp(node, op.type, this.factor());
+      node = new BinOp(node, op, this.factor());
     }
     return node;
   }
@@ -209,7 +198,7 @@ class Parser {
         this.eat(MINUS);
       }
       //recursively builds tree structure so node is new root
-      node = new BinOp(node, op.type, this.term());
+      node = new BinOp(node, op, this.term());
     }
     return node;
   }
@@ -229,14 +218,18 @@ class Parser {
 //of the AST
 class NodeVisitor {
   visit = (node) => {
-    const methodName = "visit" + typeof(node).name;
-    const visitor = new Proxy(this.methodName, () => {
-      this.genericVisit;
-    });
+    const methodName = "visit" + node.name;
+    let visitor;
+    if (typeof this[methodName] === "function") {
+      visitor = this[methodName];
+    } else {
+      visitor = this.genericVisit
+    }
+    return visitor(node);
   }
 
   genericVisit = (node) => {
-    throw Exception("No visit" + node.name + " method");
+    throw "No visit" + node.name + " method";
   }
 }
 
@@ -247,13 +240,13 @@ class Interpreter extends NodeVisitor {
   }
 
   visitBinOp = (node) => {
-    if (node.op.type == PLUS) {
+    if (node.op.type === PLUS) {
       return this.visit(node.left) + this.visit(node.right);
-    } else if (node.op.type == MINUS) {
+    } else if (node.op.type === MINUS) {
       return this.visit(node.left) - this.visit(node.right);
-    } else if (node.op.type == MUL) {
+    } else if (node.op.type === MULT) {
       return this.visit(node.left) * this.visit(node.right);
-    } else if (node.op.type == DIV) {
+    } else if (node.op.type === DIVIDE) {
       return this.visit(node.left) / this.visit(node.right);
     }
   }
