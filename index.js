@@ -239,15 +239,19 @@ class Interpreter extends NodeVisitor {
     this.parser = parser;
   }
 
+  //post-order traversal
+  //note we visit left and right, apply the operation then return (i.e. LRD in traversal)
   visitBinOp = (node) => {
+    const left = this.visit(node.left);
+    const right = this.visit(node.right);
     if (node.op.type === PLUS) {
-      return this.visit(node.left) + this.visit(node.right);
+      return left + right;
     } else if (node.op.type === MINUS) {
-      return this.visit(node.left) - this.visit(node.right);
+      return left - right;
     } else if (node.op.type === MULT) {
-      return this.visit(node.left) * this.visit(node.right);
-    } else if (node.op.type === DIVIDE) {
-      return this.visit(node.left) / this.visit(node.right);
+      return left * right;
+    } else {
+      left / right;
     }
   }
 
