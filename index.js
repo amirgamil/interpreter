@@ -119,6 +119,16 @@ class BinOp extends AST {
   }
 }
 
+class UnaryOp extends AST {
+  constructor(op, expr) {
+    super();
+    this.name = "UnaryOp"
+    this.token = this.op = op;
+    //expr represents the expression to the right of it
+    this.expr = expr
+  }
+}
+
 class Num extends AST {
   constructor(token) {
     super();
@@ -150,9 +160,18 @@ class Parser {
 
   factor = () => {
     //Return node:
-    //factor: INTEGER | LPAREN getExp RPAREN
+    //note unary operators have higher precedence than binary so put them before
+    //factor: (PLUS | MINUS) FACTOR | INTEGER | LPAREN getExp RPAREN
     const curr = this.currentToken;
-    if (curr.type == INTEGER) {
+    if (curr.type == PLUS) {
+      this.eat(PLUS);
+      const node = new UnaryOp(PLUS, this.factor());
+      return node;
+    } else if (curr.type == MINUS) {
+      this.eat(MINUS);
+      const node = new UnaryOp(MINUS, this.factor());
+      return node;
+    } else if (curr.type == INTEGER) {
       this.eat(INTEGER);
       return new Num(curr);  
     } else {
@@ -257,6 +276,14 @@ class Interpreter extends NodeVisitor {
 
   visitNum = (node) => {
     return node.value;
+  }
+
+  visitUnaryOp = (node) => {
+    if (node.op.type === MINUS) {
+      return 0 - this.visit(node.expr);
+    } else {
+      return 0 + this.visit(node.expr);
+    }
   }
 
   interpret = () => {
