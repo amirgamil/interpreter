@@ -9,8 +9,18 @@ const EOF = "EOF";
 const SPACE = " ";
 const LPAREN = "(";
 const RPAREN = ")";
+const BEGIN = "BEGIN";
+const END = "END";
+const DOT = "DOT";
+const SEMI = "SEMI";
+const ID = "ID";
+const ASSIGN = "ASSIGN";
 
 
+
+function isAlpha(string) {
+  return string.match(/^[A-Za-z]+$/);
+}
 /////////////////////////////////
 //                             //
 //  LEXER                      //
@@ -23,6 +33,11 @@ class Token {
     this.value = value;
   }
 }
+
+const RESERVED_KEYWORDS = new Map([
+  ['BEGIN', new Token('BEGIN', 'BEGIN')],
+  ['END', new Token('END', 'END')]
+]);
 
 
 class Lexer {
@@ -57,35 +72,68 @@ class Lexer {
     }
   }
 
+  //peek at the next character without consuming it
+  peek = () => {
+    const nextPos = this.pos + 1;
+    if (nextPos >= this.text.length) {
+      return null;
+    }
+    return this.text.charAt(nextPos);
+  }
+  
+  id = () => {
+    var result = "";
+    //match checks in regex if character is alpha numeric
+    while (this.currentCharacter != null && isAlpha(this.currentCharacter)) {
+      result += this.currentCharacter;
+      this.advance();
+    } 
+    const token = RESERVED_KEYWORDS.get(result) || new Token(ID, result);
+    return token;
+  }
+
   getNextToken = () => {
     // Get the next token in the line of code
 
     const text = this.text;
 
     while (this.currentCharacter) {
-      if (this.currentCharacter == " ") {
+      if (this.currentCharacter === " ") {
         this.advance();
         continue;
-      } else if (this.currentCharacter == "+") {
+      } else if (isAlpha(this.currentCharacter)) {
+        return this.id();
+      } else if (this.currentCharacter === "+") {
         this.advance();
         return new Token(PLUS, "+");
-      } else if (this.currentCharacter == "-") {
+      } else if (this.currentCharacter === "-") {
         this.advance();
         return new Token(MINUS, "-");
-      } else if (this.currentCharacter == "*") {
+      } else if (this.currentCharacter === "*") {
         this.advance();
         return new Token(MULT, "*");
-      } else if (this.currentCharacter == "/") {
+      } else if (this.currentCharacter === "/") {
         this.advance();
         return new Token(DIVIDE, "/");
       } else if (!Number.isNaN(parseInt(this.currentCharacter))) {
         return new Token(INTEGER, this.getInteger());
-      } else if (this.currentCharacter == "(") {
+      } else if (this.currentCharacter === "(") {
         this.advance();
         return new Token(LPAREN, "(");
-      } else if (this.currentCharacter == ")") {
+      } else if (this.currentCharacter === ")") {
         this.advance();
         return new Token(RPAREN, ")");
+      } else if (this.currentCharacter === ":" && this.peek() === "=") {
+        //assignment
+        this.advance();
+        this.advance();
+        return new Token(ASSIGN, ":=");
+      } else if (this.currentCharacter === ";") {
+        this.advance();
+        return new Token(SEMI, ";");
+      } else if (this.currentCharacter === ".") {
+        this.advance();
+        return new Token(DOT, ".");
       }
       console.log(this.currentCharacter);
       this.error();
@@ -154,6 +202,7 @@ class Parser {
     if (this.currentToken.type == tokenType) {
       this.currentToken = this.lexer.getNextToken();
     } else {
+      console.log("Error eating token");
       this.error();
     }
   }
